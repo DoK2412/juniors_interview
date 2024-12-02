@@ -1,5 +1,5 @@
 import unittest
-from task3.solution import merge_intervals, get_intersection, get_total_time, appearance
+from juniors_interview.task3.solution import merge_intervals, get_intersection, get_total_time, appearance
 
 
 class TestIntervalsFunctions(unittest.TestCase):

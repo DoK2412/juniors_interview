@@ -1,5 +1,5 @@
 import unittest
-from task1.solution import sum_two
+from juniors_interview.task1.solution import sum_two
 
 
 class TestStrictDecorator(unittest.TestCase):

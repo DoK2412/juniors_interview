@@ -1,37 +1,42 @@
+from itertools import chain
+
+
 def merge_intervals(intervals):
-    """Функция для объединения пересечений и устранения разрывов"""
+    """Функция для объединения пересекающихся интервалов."""
     if not intervals:
         return []
-    # сортируем интервалы
+
+    # Сортировка интервалов по началу
     intervals.sort()
     merged = [intervals[0]]
 
-    for current in intervals:
+    for current in intervals[1:]:
         previous = merged[-1]
         if current[0] <= previous[1]:
-            # объединение пересекающихся интервалов
+            # Объединение пересекающихся интервалов
             merged[-1] = (previous[0], max(previous[1], current[1]))
         else:
-            # добавление интервала в результат
+            # Добавление нового интервала в результат
             merged.append(current)
 
     return merged
 
 
 def get_intersection(intervals1, intervals2):
-    """Функция для нахождения пересечения двух списков интервалов"""
+    """Функция для нахождения пересечения двух списков интервалов."""
     intersections = []
     i, j = 0, 0
     while i < len(intervals1) and j < len(intervals2):
         start1, end1 = intervals1[i]
         start2, end2 = intervals2[j]
 
-        # поиск пересечений
-        start = max(start1, start2)
-        end = min(end1, end2)
-        if start < end:
-            intersections.append((start, end))
-        # проход к следующему интервалу
+        # Поиск пересечений
+        intersection_start = max(start1, start2)
+        intersection_end = min(end1, end2)
+        if intersection_start < intersection_end:
+            intersections.append((intersection_start, intersection_end))
+
+        # Передвигаемся к следующему интервалу
         if end1 < end2:
             i += 1
         else:
@@ -41,29 +46,35 @@ def get_intersection(intervals1, intervals2):
 
 
 def get_total_time(intervals):
-    """Функция возврата общего времи из интервалов"""
+    """Функция возврата общего времени из интервалов."""
     return sum(end - start for start, end in intervals)
 
 
 def appearance(intervals: dict[str, list[int]]) -> int:
     lesson = intervals['lesson']
-    pupil_intervals = [(intervals['pupil'][i], intervals['pupil'][i + 1]) for i in range(0, len(intervals['pupil']), 2)]
-    tutor_intervals = [(intervals['tutor'][i], intervals['tutor'][i + 1]) for i in range(0, len(intervals['tutor']), 2)]
+
+    # Формирование интервалов ученика и учителя
+    pupil_intervals = list(zip(intervals['pupil'][::2], intervals['pupil'][1::2]))
+    tutor_intervals = list(zip(intervals['tutor'][::2], intervals['tutor'][1::2]))
 
     # Ограничение интервалов учеников и преподавателей интервалом урока
     lesson_start, lesson_end = lesson
+    lesson_interval = (lesson_start, lesson_end)
 
-    pupil_intervals = [(max(start, lesson_start), min(end, lesson_end)) for start, end in pupil_intervals if
-                       start < lesson_end and end > lesson_start]
-    tutor_intervals = [(max(start, lesson_start), min(end, lesson_end)) for start, end in tutor_intervals if
-                       start < lesson_end and end > lesson_start]
+    def clamp(intervals, bounds):
+        bound_start, bound_end = bounds
+        return [(max(start, bound_start), min(end, bound_end)) for start, end in intervals if
+                start < bound_end and end > bound_start]
 
-    # Находим пересечения между учеником и учителем
+    pupil_intervals = clamp(pupil_intervals, lesson_interval)
+    tutor_intervals = clamp(tutor_intervals, lesson_interval)
+
+    # Находим и объединяем пересечения между учеником и учителем
     intersection_intervals = get_intersection(pupil_intervals, tutor_intervals)
-    # Объединяем пересекающиеся интервалы (если такие образовались)
-    merged_intervals = merge_intervals(intersection_intervals)
+    merged_intersections = merge_intervals(intersection_intervals)
+
     # Возвращаем общее время пересечений
-    return get_total_time(merged_intervals)
+    return get_total_time(merged_intersections)
 
 
 # Тестирование функции

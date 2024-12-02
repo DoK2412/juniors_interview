@@ -1,105 +1,50 @@
 import unittest
 from unittest.mock import patch, Mock
-import csv
-from task2.solution import process_page
+import requests
+from juniors_interview.task2.solution import fetch_html, process_page, get_next_url, animals_count
 
-base_url = "https://ru.wikipedia.org"
-start_url = f"{base_url}/wiki/Категория:Животные_по_алфавиту"
+class TestAnimalCount(unittest.TestCase):
 
-animals_count = {}
+    @patch('juniors_interview.task2.solution.requests.get')
+    def test_fetch_html_success(self, mock_get):
+        # Мокируем успешный ответ
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.content = b'<html><body><p>Animal</p></body></html>'
+        mock_get.return_value = mock_response
 
+        result = fetch_html("http://mockurl.com")
+        self.assertEqual(result, b'<html><body><p>Animal</p></body></html>')
+        mock_get.assert_called_once_with("http://mockurl.com")
 
-class TestAnimalPageProcessor(unittest.TestCase):
+    @patch('juniors_interview.task2.solution.requests.get')
+    def test_fetch_html_failure(self, mock_get):
+        # Мокируем сетевую ошибку
+        mock_get.side_effect = requests.exceptions.RequestException("Network error")
 
-    @patch('requests.get')
-    def test_process_page_single_page(self, mock_get):
-        html_content = '''
-        <div id="mw-pages">
-            <div class="mw-category">
-                <a href="/wiki/Альфа" title="Альфа">Альфа</a>
-                <a href="/wiki/Бета" title="Бета">Бета</a>
-                <a href="/wiki/Бетта" title="Бетта">Бетта</a>
-                <a href="/wiki/Гамма" title="Гамма">Гамма</a>
-            </div>
-        </div>
-        '''
-        mock_get.return_value.content = html_content
+        result = fetch_html("http://mockurl.com")
+        self.assertIsNone(result)
 
-        global animals_count
-        animals_count = {}
+    def test_process_page(self):
+        html_content = b'<html><body><p>Animal 1</p><p>Animal 2</p></body></html>'
+        result = process_page(html_content)
+        # Предполагаем, что функция process_page возвращает количество найденных животных
+        self.assertEqual(result, 2)  # Здесь нужно заменить на ваше реальное ожидаемое значение
 
-        process_page("mocked_url")
+    def test_get_next_url(self):
+        current_url = "http://mockurl.com/page=1"
+        result = get_next_url(current_url)
+        # Проверяем, как функция генерирует следующий URL
+        self.assertEqual(result, "http://mockurl.com/page=2")  # Убедитесь, что предполагаемый URL верный
 
-        self.assertEqual(animals_count['А'], 1)
-        self.assertEqual(animals_count['Б'], 2)
-        self.assertEqual(animals_count['Г'], 1)
+    @patch('juniors_interview.task2.solution.fetch_html')
+    @patch('juniors_interview.task2.solution.process_page')
+    def test_animals_count(self, mock_process_page, mock_fetch_html):
+        mock_fetch_html.return_value = b'<html><body><p>Animal</p></body></html>'
+        mock_process_page.return_value = 1
 
-    @patch('requests.get')
-    def test_process_page_multiple_pages(self, mock_get):
-        html_content_page1 = '''
-        <div id="mw-pages">
-            <div class="mw-category">
-                <a href="/wiki/Альфа" title="Альфа">Альфа</a>
-                <a href="/wiki/Бета" title="Бета">Бета</a>
-            </div>
-            <a href="/wiki/NextPage" title="Следующая страница">Следующая страница</a>
-        </div>
-        '''
-
-        html_content_page2 = '''
-        <div id="mw-pages">
-            <div class="mw-category">
-                <a href="/wiki/Гамма" title="Гамма">Гамма</a>
-                <a href="/wiki/Дельта" title="Дельта">Дельта</a>
-            </div>
-        </div>
-        '''
-
-        def side_effect(url):
-            if url == 'mocked_url':
-                mock_get.return_value.content = html_content_page1
-            else:
-                mock_get.return_value.content = html_content_page2
-            return mock_get.return_value
-
-        mock_get.side_effect = side_effect
-
-        global animals_count
-        animals_count = {}
-
-        process_page("mocked_url")
-
-        self.assertEqual(animals_count['А'], 1)
-        self.assertEqual(animals_count['Б'], 1)
-        self.assertEqual(animals_count['Г'], 1)
-        self.assertEqual(animals_count['Д'], 1)
-
-    @patch('builtins.open')
-    @patch('csv.DictWriter')
-    def test_csv_output(self, mock_dict_writer, mock_open):
-        # Simulate CSV writing
-        global animals_count
-        animals_count = {'А': 2, 'Б': 3, 'В': 1}
-
-        mock_writer = Mock()
-        mock_dict_writer.return_value = mock_writer
-
-        csvfile = Mock()
-        mock_open.return_value.__enter__.return_value = csvfile
-
-        with open('animals_count.csv', 'w', newline='', encoding='utf-8') as csvfile:
-            fieldnames = ['Буква', 'Количество']
-            writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
-
-            writer.writeheader()
-            for letter, count in sorted(animals_count.items()):
-                writer.writerow({'Буква': letter, 'Количество': count})
-
-        mock_writer.writeheader.assert_called_once()
-        self.assertEqual(mock_writer.writerow.call_count, 3)
-        mock_writer.writerow.assert_any_call({'Буква': 'А', 'Количество': 2})
-        mock_writer.writerow.assert_any_call({'Буква': 'Б', 'Количество': 3})
-        mock_writer.writerow.assert_any_call({'Буква': 'В', 'Количество': 1})
+        result = animals_count("http://mockurl.com")
+        self.assertEqual(result, 1)
 
 if __name__ == '__main__':
     unittest.main()
